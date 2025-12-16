@@ -2,7 +2,7 @@
 
 **Enable Cursor Parallel Agents in your Drupal project with one command.**
 
-[Cursor Parallel Agents](https://docs.cursor.com/agent/worktrees) run in isolated Git worktrees with separate DDEV environments. This installer configures everything automatically.
+[Cursor Parallel Agents](https://cursor.com/docs/configuration/worktrees) run in isolated Git worktrees with separate DDEV environments. This installer configures everything automatically.
 
 ## Quick Start
 
