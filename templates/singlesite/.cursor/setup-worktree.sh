@@ -22,6 +22,20 @@ if [[ -z "$WORKTREE_ID" ]]; then
   exit 1
 fi
 
+# Auto-detect ROOT_WORKTREE_PATH if not set
+if [[ -z "$ROOT_WORKTREE_PATH" ]]; then
+  # In a git worktree, .git is a file pointing to the main repo
+  if [[ -f ".git" ]]; then
+    # Get the main worktree path (first line from git worktree list)
+    ROOT_WORKTREE_PATH=$(git worktree list --porcelain | grep "^worktree " | head -1 | cut -d' ' -f2-)
+  fi
+fi
+
+if [[ -z "$ROOT_WORKTREE_PATH" ]]; then
+  log_error "Could not detect ROOT_WORKTREE_PATH - are you in a git worktree?"
+  exit 1
+fi
+
 # Project configuration
 PROJECT_NAME="__PROJECT_NAME__-${WORKTREE_ID}"
 SNAPSHOTS_DIR=".ddev/db-dumps"
@@ -31,12 +45,6 @@ MAIN_SNAPSHOT="${SNAPSHOTS_DIR}/__PROJECT_NAME__.sql.gz"
 # Validation
 #------------------------------------------------------------------------------
 log_step "Validating environment"
-
-# Check if we're in a worktree
-if [[ -z "$ROOT_WORKTREE_PATH" ]]; then
-  log_error "ROOT_WORKTREE_PATH is not set - this script must be run by Cursor in a worktree"
-  exit 1
-fi
 
 log_info "Worktree ID: ${WORKTREE_ID}"
 log_info "Project name: ${PROJECT_NAME}"
@@ -51,9 +59,32 @@ fi
 log_success "Database snapshot found"
 
 #------------------------------------------------------------------------------
-# Generate DDEV configuration
+# Copy DDEV configuration from main project
 #------------------------------------------------------------------------------
-log_step "Generating DDEV configuration"
+log_step "Copying DDEV configuration"
+
+if [[ ! -d ".ddev" ]]; then
+  if [[ -d "${ROOT_WORKTREE_PATH}/.ddev" ]]; then
+    # Copy .ddev directory from main project (excluding runtime files)
+    mkdir -p .ddev
+    cp -r "${ROOT_WORKTREE_PATH}/.ddev/config.yaml" .ddev/ 2>/dev/null || true
+    cp -r "${ROOT_WORKTREE_PATH}/.ddev/providers" .ddev/ 2>/dev/null || true
+    cp -r "${ROOT_WORKTREE_PATH}/.ddev/commands" .ddev/ 2>/dev/null || true
+    cp -r "${ROOT_WORKTREE_PATH}/.ddev/docker-compose.*.yaml" .ddev/ 2>/dev/null || true
+    cp -r "${ROOT_WORKTREE_PATH}/.ddev/.gitignore" .ddev/ 2>/dev/null || true
+    log_success "Copied .ddev configuration from main project"
+  else
+    log_error "Main project .ddev directory not found: ${ROOT_WORKTREE_PATH}/.ddev"
+    exit 1
+  fi
+else
+  log_info ".ddev directory already exists"
+fi
+
+#------------------------------------------------------------------------------
+# Generate DDEV local configuration
+#------------------------------------------------------------------------------
+log_step "Generating DDEV local configuration"
 
 cat > .ddev/config.local.yaml << EOF
 # Auto-generated for Cursor worktree: ${WORKTREE_ID}
@@ -103,6 +134,9 @@ MAIN_FILES_DIR="${ROOT_WORKTREE_PATH}/${FILES_DIR}"
 if [[ -d "$MAIN_FILES_DIR" ]]; then
   # Remove existing files directory if it exists
   rm -rf "$FILES_DIR"
+
+  # Ensure parent directory exists
+  mkdir -p "$(dirname "$FILES_DIR")"
 
   # Create symlink to main project's files
   ln -sf "$MAIN_FILES_DIR" "$FILES_DIR"

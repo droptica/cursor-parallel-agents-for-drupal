@@ -14,8 +14,10 @@ set -e
 #------------------------------------------------------------------------------
 # Configuration
 #------------------------------------------------------------------------------
-REPO_RAW_URL="https://raw.githubusercontent.com/droptica/cursor-worktree-drupal/main"
+REPO_URL="https://github.com/droptica/cursor-parallel-agents-for-drupal.git"
+REPO_SSH_URL="git@github.com:droptica/cursor-parallel-agents-for-drupal.git"
 VERSION="1.0.0"
+TEMP_DIR=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -343,23 +345,57 @@ extract_multisite_config() {
 }
 
 #------------------------------------------------------------------------------
-# Template download and installation
+# Repository cloning
 #------------------------------------------------------------------------------
-download_file() {
-  local url="$1"
+clone_repo() {
+  if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
+    return 0  # Already cloned
+  fi
+
+  TEMP_DIR=$(mktemp -d)
+  log_info "Cloning repository to temporary directory..."
+
+  # Try SSH first (for private repo access), then HTTPS
+  if git clone --depth 1 --quiet "$REPO_SSH_URL" "$TEMP_DIR" 2>/dev/null; then
+    log_success "Repository cloned via SSH"
+  elif git clone --depth 1 --quiet "$REPO_URL" "$TEMP_DIR" 2>/dev/null; then
+    log_success "Repository cloned via HTTPS"
+  else
+    log_error "Failed to clone repository"
+    log_error "Make sure you have access to: $REPO_URL"
+    log_error "For private repos, ensure SSH keys are configured"
+    rm -rf "$TEMP_DIR"
+    exit 1
+  fi
+}
+
+cleanup_temp() {
+  if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
+    rm -rf "$TEMP_DIR"
+    log_info "Cleaned up temporary files"
+  fi
+}
+
+# Ensure cleanup on exit
+trap cleanup_temp EXIT
+
+copy_template() {
+  local src="$1"
   local dest="$2"
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    log_info "[DRY-RUN] Would download: $url → $dest"
+    log_info "[DRY-RUN] Would copy: $src → $dest"
     return
   fi
 
   mkdir -p "$(dirname "$dest")"
 
-  if ! curl -sL "$url" -o "$dest"; then
-    log_error "Failed to download: $url"
+  if [[ ! -f "${TEMP_DIR}/${src}" ]]; then
+    log_error "Template file not found: $src"
     exit 1
   fi
+
+  cp "${TEMP_DIR}/${src}" "$dest"
 }
 
 install_singlesite() {
@@ -368,20 +404,23 @@ install_singlesite() {
 
   log_info "Installing singlesite configuration..."
 
+  # Clone repository to temp directory
+  clone_repo
+
   # Create directories
   mkdir -p .cursor/lib
   mkdir -p .ddev/commands/host
 
-  # Download common templates
-  download_file "$REPO_RAW_URL/templates/common/.cursor/worktrees.json" ".cursor/worktrees.json"
-  download_file "$REPO_RAW_URL/templates/common/.cursor/cleanup-worktree.sh" ".cursor/cleanup-worktree.sh"
-  download_file "$REPO_RAW_URL/templates/common/.cursor/lib/logging.sh" ".cursor/lib/logging.sh"
+  # Copy common templates
+  copy_template "templates/common/.cursor/worktrees.json" ".cursor/worktrees.json"
+  copy_template "templates/common/.cursor/cleanup-worktree.sh" ".cursor/cleanup-worktree.sh"
+  copy_template "templates/common/.cursor/lib/logging.sh" ".cursor/lib/logging.sh"
 
-  # Download singlesite-specific templates
-  download_file "$REPO_RAW_URL/templates/singlesite/.cursor/setup-worktree.sh" ".cursor/setup-worktree.sh"
-  download_file "$REPO_RAW_URL/templates/singlesite/.cursor/README.md" ".cursor/README.md"
-  download_file "$REPO_RAW_URL/templates/singlesite/.ddev/commands/host/export-snapshot" ".ddev/commands/host/export-snapshot"
-  download_file "$REPO_RAW_URL/templates/singlesite/.ddev/commands/host/worktree-status" ".ddev/commands/host/worktree-status"
+  # Copy singlesite-specific templates
+  copy_template "templates/singlesite/.cursor/setup-worktree.sh" ".cursor/setup-worktree.sh"
+  copy_template "templates/singlesite/.cursor/README.md" ".cursor/README.md"
+  copy_template "templates/singlesite/.ddev/commands/host/export-snapshot" ".ddev/commands/host/export-snapshot"
+  copy_template "templates/singlesite/.ddev/commands/host/worktree-status" ".ddev/commands/host/worktree-status"
 
   if [[ "$DRY_RUN" == "true" ]]; then
     log_info "[DRY-RUN] Would replace __PROJECT_NAME__ with ${project_name}"
