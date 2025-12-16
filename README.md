@@ -244,7 +244,11 @@ git commit -m "Initial commit"
 ### Worktree Setup Issues
 
 #### "No snapshots found"
-Create snapshots in main project:
+Snapshots are created automatically during installation. This error occurs only if:
+- Snapshots were manually deleted
+- You need to refresh after database changes
+
+Recreate snapshots:
 ```bash
 ddev export-snapshot              # singlesite
 ddev export-multisite-snapshots   # multisite
