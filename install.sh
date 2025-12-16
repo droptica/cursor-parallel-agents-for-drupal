@@ -469,18 +469,21 @@ install_multisite() {
     return
   fi
 
+  # Clone repository to temp directory
+  clone_repo
+
   # Create directories
   mkdir -p .cursor/lib
   mkdir -p .ddev/commands/host
 
-  # Download common templates
-  download_file "$REPO_RAW_URL/templates/common/.cursor/worktrees.json" ".cursor/worktrees.json"
-  download_file "$REPO_RAW_URL/templates/common/.cursor/cleanup-worktree.sh" ".cursor/cleanup-worktree.sh"
-  download_file "$REPO_RAW_URL/templates/common/.cursor/lib/logging.sh" ".cursor/lib/logging.sh"
+  # Copy common templates
+  copy_template "templates/common/.cursor/worktrees.json" ".cursor/worktrees.json"
+  copy_template "templates/common/.cursor/cleanup-worktree.sh" ".cursor/cleanup-worktree.sh"
+  copy_template "templates/common/.cursor/lib/logging.sh" ".cursor/lib/logging.sh"
 
-  # Download multisite-specific templates
-  download_file "$REPO_RAW_URL/templates/multisite/.cursor/README.md" ".cursor/README.md"
-  download_file "$REPO_RAW_URL/templates/multisite/.ddev/commands/host/worktree-status" ".ddev/commands/host/worktree-status"
+  # Copy multisite-specific templates
+  copy_template "templates/multisite/.cursor/README.md" ".cursor/README.md"
+  copy_template "templates/multisite/.ddev/commands/host/worktree-status" ".ddev/commands/host/worktree-status"
 
   # Generate setup-worktree.sh dynamically
   generate_multisite_setup_worktree "$project_name" "$web_root"
@@ -602,6 +605,20 @@ if [[ -z "\$WORKTREE_ID" ]]; then
   exit 1
 fi
 
+# Auto-detect ROOT_WORKTREE_PATH if not set
+if [[ -z "\$ROOT_WORKTREE_PATH" ]]; then
+  # In a git worktree, .git is a file pointing to the main repo
+  if [[ -f ".git" ]]; then
+    # Get the main worktree path (first line from git worktree list)
+    ROOT_WORKTREE_PATH=\$(git worktree list --porcelain | grep "^worktree " | head -1 | cut -d' ' -f2-)
+  fi
+fi
+
+if [[ -z "\$ROOT_WORKTREE_PATH" ]]; then
+  log_error "Could not detect ROOT_WORKTREE_PATH - are you in a git worktree?"
+  exit 1
+fi
+
 PROJECT_NAME="${project_name}-\${WORKTREE_ID}"
 SNAPSHOTS_DIR=".ddev/db-dumps"
 WEB_ROOT="${web_root}"
@@ -642,11 +659,6 @@ import_db() {
 #------------------------------------------------------------------------------
 log_step "Validating environment"
 
-if [[ -z "\$ROOT_WORKTREE_PATH" ]]; then
-  log_error "ROOT_WORKTREE_PATH is not set - this script must be run by Cursor in a worktree"
-  exit 1
-fi
-
 log_info "Worktree ID: \${WORKTREE_ID}"
 log_info "Project name: \${PROJECT_NAME}"
 log_info "Root worktree: \${ROOT_WORKTREE_PATH}"
@@ -654,9 +666,32 @@ log_info "Root worktree: \${ROOT_WORKTREE_PATH}"
 check_prerequisites "\$ROOT_WORKTREE_PATH"
 
 #------------------------------------------------------------------------------
-# Generate DDEV configuration
+# Copy DDEV configuration from main project
 #------------------------------------------------------------------------------
-log_step "Generating DDEV configuration"
+log_step "Copying DDEV configuration"
+
+if [[ ! -d ".ddev" ]]; then
+  if [[ -d "\${ROOT_WORKTREE_PATH}/.ddev" ]]; then
+    # Copy .ddev directory from main project (excluding runtime files)
+    mkdir -p .ddev
+    cp -r "\${ROOT_WORKTREE_PATH}/.ddev/config.yaml" .ddev/ 2>/dev/null || true
+    cp -r "\${ROOT_WORKTREE_PATH}/.ddev/providers" .ddev/ 2>/dev/null || true
+    cp -r "\${ROOT_WORKTREE_PATH}/.ddev/commands" .ddev/ 2>/dev/null || true
+    cp -r "\${ROOT_WORKTREE_PATH}/.ddev/docker-compose.*.yaml" .ddev/ 2>/dev/null || true
+    cp -r "\${ROOT_WORKTREE_PATH}/.ddev/.gitignore" .ddev/ 2>/dev/null || true
+    log_success "Copied .ddev configuration from main project"
+  else
+    log_error "Main project .ddev directory not found: \${ROOT_WORKTREE_PATH}/.ddev"
+    exit 1
+  fi
+else
+  log_info ".ddev directory already exists"
+fi
+
+#------------------------------------------------------------------------------
+# Generate DDEV local configuration
+#------------------------------------------------------------------------------
+log_step "Generating DDEV local configuration"
 
 cat > .ddev/config.local.yaml << EOF
 # Auto-generated for Cursor worktree: \${WORKTREE_ID}
