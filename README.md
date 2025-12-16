@@ -8,7 +8,7 @@
 
 ```bash
 cd your-drupal-project
-curl -sL https://raw.githubusercontent.com/droptica/cursor-worktree-drupal/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/droptica/cursor-parallel-agents-for-drupal/main/install.sh | bash
 ```
 
 That's it! The installer will:
@@ -47,8 +47,10 @@ curl -sL .../install.sh | bash -s -- --help
 ├── setup-worktree.sh   # Setup script for new worktrees
 ├── cleanup-worktree.sh # Cleanup script
 ├── README.md           # Documentation
-└── lib/
-    └── logging.sh      # Shared logging functions
+├── lib/
+│   └── logging.sh      # Shared logging functions
+└── logs/               # Created automatically
+    └── worktree-{ID}.log  # Logs per worktree
 
 .ddev/commands/host/
 ├── export-snapshot     # Export database for worktrees
@@ -330,15 +332,15 @@ docker system prune -a
 
 1. Check DDEV logs: `ddev logs`
 2. Check Docker logs: `docker logs ddev-myproject-web`
-3. Open an issue: https://github.com/droptica/cursor-worktree-drupal/issues
+3. Open an issue: https://github.com/droptica/cursor-parallel-agents-for-drupal/issues
 
 ---
 
 ## Project Structure
 
 ```
-cursor-worktree-drupal/
-├── install.sh              # Main installer script (~1200 lines)
+cursor-parallel-agents-for-drupal/
+├── install.sh              # Main installer script
 ├── README.md               # This file
 ├── LICENSE                 # MIT License
 └── templates/
