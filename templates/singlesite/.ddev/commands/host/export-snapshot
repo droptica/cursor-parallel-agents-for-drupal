@@ -1,0 +1,29 @@
+#!/bin/bash
+
+## Description: Export database snapshot for Cursor worktrees
+## Usage: export-snapshot
+## Example: ddev export-snapshot
+
+set -e
+
+SNAPSHOTS_DIR=".ddev/db-dumps"
+PROJECT_NAME=$(grep "^name:" .ddev/config.yaml | awk '{print $2}' | tr -d '"' | tr -d "'")
+SNAPSHOT_FILE="${SNAPSHOTS_DIR}/${PROJECT_NAME}.sql.gz"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}[INFO]${NC} Creating database snapshot for Cursor worktrees..."
+
+mkdir -p "$SNAPSHOTS_DIR"
+
+echo -e "${BLUE}[INFO]${NC} Exporting database..."
+ddev export-db --gzip --file="$SNAPSHOT_FILE"
+
+echo ""
+echo -e "${GREEN}✓${NC} Snapshot saved to: $SNAPSHOT_FILE"
+echo -e "${GREEN}✓${NC} Size: $(du -h "$SNAPSHOT_FILE" | cut -f1)"
+echo ""
+echo "Worktrees will use this snapshot for their database."

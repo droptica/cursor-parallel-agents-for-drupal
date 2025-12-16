@@ -1,0 +1,6 @@
+{
+  "setup-worktree-unix": "setup-worktree.sh",
+  "setup-worktree-windows": [
+    "echo Windows not supported for this Drupal DDEV setup"
+  ]
+}
