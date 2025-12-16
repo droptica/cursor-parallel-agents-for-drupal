@@ -40,7 +40,7 @@ log_error() { log "${RED}ERROR${NC}" "$@"; }
 # Header
 #------------------------------------------------------------------------------
 show_header() {
-  clear
+  clear 2>/dev/null || true
   echo ""
   echo -e "${CYAN}${BOLD}"
   echo "   ██████╗██╗   ██╗██████╗ ███████╗ ██████╗ ██████╗ "
