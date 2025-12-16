@@ -598,7 +598,16 @@ SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 source "\${SCRIPT_DIR}/lib/logging.sh"
 source "\${SCRIPT_DIR}/lib/prerequisites.sh"
 
-WORKTREE_ID="\${CURSOR_WORKTREE_ID:-\${1:-}}"
+# Worktree ID - extract from environment, argument, or current directory
+if [[ -n "\$CURSOR_WORKTREE_ID" ]]; then
+  # If CURSOR_WORKTREE_ID is a path, extract basename
+  WORKTREE_ID=\$(basename "\$CURSOR_WORKTREE_ID")
+elif [[ -n "\${1:-}" ]]; then
+  WORKTREE_ID=\$(basename "\$1")
+else
+  # Fallback: extract from current directory name
+  WORKTREE_ID=\$(basename "\$(pwd)")
+fi
 
 if [[ -z "\$WORKTREE_ID" ]]; then
   log_error "WORKTREE_ID is required"
