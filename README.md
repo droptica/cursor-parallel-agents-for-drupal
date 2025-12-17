@@ -66,6 +66,32 @@ Same as singlesite, plus:
 - `export-multisite-snapshots` - Exports all site databases
 - `sites.php` - Automatically patched with worktree patterns
 
+### Worktree Logs
+
+Each worktree setup creates a log file in `.cursor/logs/`:
+
+```
+.cursor/logs/
+├── worktree-abc12.log   # Log for worktree abc12
+├── worktree-xyz99.log   # Log for worktree xyz99
+└── ...
+```
+
+Log files contain:
+- **Setup progress** - each step with timestamp
+- **DDEV status** - start, database import, cache clear
+- **Site URL** - where the worktree site is running
+- **Admin login URL** - one-time login link
+- **Errors** - if something fails
+
+Example log entry:
+```
+Dec 17 05:35:07 hostname worktree[12345]: [INFO] Worktree ID: abc12
+Dec 17 05:35:07 hostname worktree[12345]: [INFO] Project name: myproject-abc12
+Dec 17 05:35:40 hostname worktree[12345]: [OK] DDEV started
+Dec 17 05:35:42 hostname worktree[12345]: [INFO] Site URL: https://myproject-abc12.ddev.site
+```
+
 ## How It Works
 
 ```

@@ -2,11 +2,12 @@
 #
 # Logging functions for Cursor worktree scripts
 #
-# Required variables (set before sourcing):
+# Optional variables (can be set before or after sourcing):
 #   WORKTREE_ID        - worktree identifier (for separate log files)
-#
-# Optional variables:
 #   ROOT_WORKTREE_PATH - main project path (for centralized logs)
+#
+# Note: LOG_FILE is determined lazily on first log call, allowing
+# WORKTREE_ID to be set after sourcing this file.
 #
 
 # Colors for output
@@ -29,23 +30,46 @@ else
   LOG_DIR="${SCRIPT_DIR}/logs"
 fi
 
-# Separate log file per worktree
-if [[ -n "$WORKTREE_ID" ]]; then
-  LOG_FILE="${LOG_DIR}/worktree-${WORKTREE_ID}.log"
-else
-  LOG_FILE="${LOG_DIR}/worktree.log"
-fi
-
 # Create logs directory
 mkdir -p "$LOG_DIR"
+
+# LOG_FILE will be determined dynamically by get_log_file function
+# This allows WORKTREE_ID to be set after sourcing this file
+LOG_FILE=""
+
+get_log_file() {
+  # Return cached value if already determined
+  if [[ -n "$LOG_FILE" ]]; then
+    echo "$LOG_FILE"
+    return
+  fi
+  
+  # Determine log file based on WORKTREE_ID
+  if [[ -n "$WORKTREE_ID" ]]; then
+    LOG_FILE="${LOG_DIR}/worktree-${WORKTREE_ID}.log"
+  else
+    # Fallback: extract ID from current directory
+    local current_dir_id
+    current_dir_id="$(pwd)"
+    current_dir_id="${current_dir_id##*/}"
+    if [[ -n "$current_dir_id" ]]; then
+      LOG_FILE="${LOG_DIR}/worktree-${current_dir_id}.log"
+    else
+      LOG_FILE="${LOG_DIR}/worktree.log"
+    fi
+  fi
+  echo "$LOG_FILE"
+}
 
 # Core logging function - writes to file
 log_to_file() {
   local level="${1:-INFO}"
   local message="$2"
   local timestamp
+  local log_file
   timestamp=$(date '+%b %d %H:%M:%S')
-  echo "${timestamp} ${LOG_HOSTNAME} worktree[${LOG_PID}]: [${level}] ${message}" >> "$LOG_FILE"
+  log_file="$(get_log_file)"
+  echo "${timestamp} ${LOG_HOSTNAME} worktree[${LOG_PID}]: [${level}] ${message}" >> "$log_file"
 }
 
 # Logging functions - output to both console and file

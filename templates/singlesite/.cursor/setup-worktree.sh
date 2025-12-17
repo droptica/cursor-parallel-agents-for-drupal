@@ -15,18 +15,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/logging.sh"
 
 # Worktree ID - extract from environment, argument, or current directory
+# Use bash parameter expansion ${var##*/} instead of basename for reliability
+RAW_ID=""
 if [[ -n "$CURSOR_WORKTREE_ID" ]]; then
-  # If CURSOR_WORKTREE_ID is a path, extract basename
-  WORKTREE_ID=$(basename "$CURSOR_WORKTREE_ID")
+  RAW_ID="$CURSOR_WORKTREE_ID"
 elif [[ -n "${1:-}" ]]; then
-  WORKTREE_ID=$(basename "$1")
+  RAW_ID="$1"
 else
-  # Fallback: extract from current directory name
-  WORKTREE_ID=$(basename "$(pwd)")
+  RAW_ID="$(pwd)"
 fi
 
-if [[ -z "$WORKTREE_ID" ]]; then
-  log_error "WORKTREE_ID is required"
+# Extract basename using parameter expansion (more reliable than basename command)
+WORKTREE_ID="${RAW_ID##*/}"
+
+# Validate: WORKTREE_ID must not be empty or contain path separators
+if [[ -z "$WORKTREE_ID" ]] || [[ "$WORKTREE_ID" == */* ]]; then
+  log_error "Invalid WORKTREE_ID: '${WORKTREE_ID}' (from: '${RAW_ID}')"
   exit 1
 fi
 
@@ -197,9 +201,11 @@ if [[ -z "$SITE_URL" ]]; then
   SITE_URL="https://${PROJECT_NAME}.ddev.site"
 fi
 
+log_info "Site URL: ${SITE_URL}"
+
 # Check if site responds
 if curl -sI "$SITE_URL" | head -1 | grep -q "200\|301\|302\|303"; then
-  log_success "Site is responding: ${SITE_URL}"
+  log_success "Site is responding"
 else
   log_warn "Site may not be fully ready yet"
 fi
@@ -212,10 +218,7 @@ log_step "Generating admin login"
 LOGIN_URL=$(ddev drush uli --uri="$SITE_URL" 2>/dev/null || echo "")
 
 if [[ -n "$LOGIN_URL" ]]; then
-  log_success "Admin login URL:"
-  echo ""
-  echo "  ${LOGIN_URL}"
-  echo ""
+  log_success "Admin login URL: ${LOGIN_URL}"
 else
   log_warn "Could not generate login URL"
 fi
@@ -223,6 +226,12 @@ fi
 #------------------------------------------------------------------------------
 # Summary
 #------------------------------------------------------------------------------
+log_step "Setup complete"
+log_info "Worktree ID: ${WORKTREE_ID}"
+log_info "Project: ${PROJECT_NAME}"
+log_info "Branch: ${BRANCH_NAME}"
+log_info "URL: ${SITE_URL}"
+
 echo ""
 echo "╔════════════════════════════════════════════════════════════════════╗"
 echo "║  ✅ Worktree Setup Complete!                                       ║"
