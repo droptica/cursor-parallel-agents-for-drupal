@@ -125,8 +125,14 @@ The worktree setup automatically detects and builds theme assets. Supported meth
 | Method | Detection | Command |
 |--------|-----------|---------|
 | **ddev theme** | Custom DDEV command exists | `ddev theme` |
-| **yarn** | `yarn.lock` in theme directory | `yarn install && yarn build` |
-| **npm** | `package.json` in theme directory | `npm ci && npm run build` |
+| **gulp** | `gulpfile.js` in theme | `yarn/npm install && gulp compile/dist` |
+| **npm scripts** | `package.json` in theme | `yarn/npm install && npm run build` |
+
+### Gulp Tasks (tried in order)
+- `gulp compile`
+- `gulp dist`
+- `gulp build`
+- `gulp` (default)
 
 ### Theme Directory Detection
 

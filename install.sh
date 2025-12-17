@@ -837,7 +837,7 @@ if command -v ddev &>/dev/null && ddev describe 2>/dev/null | grep -q "theme"; t
   fi
 fi
 
-# Method 2: npm/yarn in theme directory
+# Method 2: yarn/npm + gulp in theme directory
 if [[ "\$THEME_BUILT" == "false" ]]; then
   # Find theme directory with package.json
   THEME_DIR=""
@@ -849,28 +849,48 @@ if [[ "\$THEME_BUILT" == "false" ]]; then
   done
 
   if [[ -n "\$THEME_DIR" ]]; then
-    log_info "Found theme with package.json: \${THEME_DIR}"
-    pushd "\$THEME_DIR" > /dev/null
-    
+    log_info "Found theme: \${THEME_DIR}"
     THEME_START=\$(date +%s)
-    
-    # Check for yarn.lock or package-lock.json
-    if [[ -f "yarn.lock" ]]; then
-      log_info "Using yarn..."
-      if ddev exec "cd \$THEME_DIR && yarn install && yarn build" 2>&1; then
+
+    # Determine build tool (gulp vs npm scripts)
+    HAS_GULP=false
+    if [[ -f "\${THEME_DIR}/gulpfile.js" ]]; then
+      HAS_GULP=true
+    fi
+
+    # Determine package manager (yarn vs npm)
+    if [[ -f "\${THEME_DIR}/yarn.lock" ]]; then
+      PKG_MANAGER="yarn"
+      PKG_INSTALL="yarn install"
+    else
+      PKG_MANAGER="npm"
+      PKG_INSTALL="npm ci || npm install"
+    fi
+
+    log_info "Using \${PKG_MANAGER} + \$(if [[ "\$HAS_GULP" == "true" ]]; then echo "gulp"; else echo "npm scripts"; fi)"
+
+    if [[ "\$HAS_GULP" == "true" ]]; then
+      # Gulp-based build (common in Drupal themes)
+      if ddev exec "cd \${THEME_DIR} && \${PKG_INSTALL} && gulp compile" 2>&1; then
+        THEME_BUILT=true
+      elif ddev exec "cd \${THEME_DIR} && \${PKG_INSTALL} && gulp dist" 2>&1; then
+        THEME_BUILT=true
+      elif ddev exec "cd \${THEME_DIR} && \${PKG_INSTALL} && gulp build" 2>&1; then
+        THEME_BUILT=true
+      elif ddev exec "cd \${THEME_DIR} && \${PKG_INSTALL} && gulp" 2>&1; then
         THEME_BUILT=true
       fi
-    elif [[ -f "package-lock.json" ]] || [[ -f "package.json" ]]; then
-      log_info "Using npm..."
-      if ddev exec "cd \$THEME_DIR && npm ci && npm run build" 2>&1; then
+    else
+      # npm scripts based build
+      if ddev exec "cd \${THEME_DIR} && \${PKG_INSTALL} && npm run build" 2>&1; then
         THEME_BUILT=true
-      elif ddev exec "cd \$THEME_DIR && npm install && npm run build" 2>&1; then
+      elif ddev exec "cd \${THEME_DIR} && \${PKG_INSTALL} && npm run production" 2>&1; then
+        THEME_BUILT=true
+      elif ddev exec "cd \${THEME_DIR} && \${PKG_INSTALL} && npm run dist" 2>&1; then
         THEME_BUILT=true
       fi
     fi
-    
-    popd > /dev/null
-    
+
     if [[ "\$THEME_BUILT" == "true" ]]; then
       THEME_END=\$(date +%s)
       log_success "Theme built in \$((THEME_END - THEME_START))s"
