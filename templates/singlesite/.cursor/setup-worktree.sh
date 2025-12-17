@@ -62,13 +62,34 @@ log_info "Worktree ID: ${WORKTREE_ID}"
 log_info "Project name: ${PROJECT_NAME}"
 log_info "Root worktree: ${ROOT_WORKTREE_PATH}"
 
-# Check for required snapshot
-if [[ ! -f "${ROOT_WORKTREE_PATH}/${MAIN_SNAPSHOT}" ]]; then
-  log_error "Database snapshot not found: ${ROOT_WORKTREE_PATH}/${MAIN_SNAPSHOT}"
-  log_error "Run 'ddev export-snapshot' in the main project first"
+#------------------------------------------------------------------------------
+# Create fresh database snapshot from main project
+#------------------------------------------------------------------------------
+log_step "Creating fresh database snapshot"
+
+SNAPSHOT_PATH="${ROOT_WORKTREE_PATH}/${MAIN_SNAPSHOT}"
+SNAPSHOT_START=$(date +%s)
+
+log_info "Exporting database from main project..."
+
+# Ensure snapshots directory exists
+mkdir -p "${ROOT_WORKTREE_PATH}/${SNAPSHOTS_DIR}"
+
+# Export database from main project (run ddev in main project context)
+pushd "${ROOT_WORKTREE_PATH}" > /dev/null
+if ! ddev export-db --gzip --file="${MAIN_SNAPSHOT}" 2>&1; then
+  log_error "Failed to create database snapshot"
+  popd > /dev/null
   exit 1
 fi
-log_success "Database snapshot found"
+popd > /dev/null
+
+SNAPSHOT_END=$(date +%s)
+SNAPSHOT_DURATION=$((SNAPSHOT_END - SNAPSHOT_START))
+SNAPSHOT_SIZE=$(du -h "${SNAPSHOT_PATH}" | cut -f1)
+
+log_success "Snapshot created: ${SNAPSHOT_SIZE} in ${SNAPSHOT_DURATION}s"
+log_info "Snapshot path: ${SNAPSHOT_PATH}"
 
 #------------------------------------------------------------------------------
 # Copy DDEV configuration from main project

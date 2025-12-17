@@ -584,7 +584,6 @@ set -e
 #------------------------------------------------------------------------------
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 source "\${SCRIPT_DIR}/lib/logging.sh"
-source "\${SCRIPT_DIR}/lib/prerequisites.sh"
 
 # Worktree ID - extract from environment, argument, or current directory
 # Use bash parameter expansion \${var##*/} instead of basename for reliability
@@ -664,7 +663,50 @@ log_info "Worktree ID: \${WORKTREE_ID}"
 log_info "Project name: \${PROJECT_NAME}"
 log_info "Root worktree: \${ROOT_WORKTREE_PATH}"
 
-check_prerequisites "\$ROOT_WORKTREE_PATH"
+#------------------------------------------------------------------------------
+# Create fresh database snapshots from main project
+#------------------------------------------------------------------------------
+log_step "Creating fresh database snapshots"
+
+SNAPSHOT_TOTAL_START=\$(date +%s)
+
+# Ensure snapshots directory exists
+mkdir -p "\${ROOT_WORKTREE_PATH}/\${SNAPSHOTS_DIR}"
+
+# Export databases from main project context
+pushd "\${ROOT_WORKTREE_PATH}" > /dev/null
+
+# Export main database
+log_info "Exporting main database..."
+SNAP_START=\$(date +%s)
+if ! ddev export-db --gzip --file="\${SNAPSHOTS_DIR}/main.sql.gz" 2>&1; then
+  log_error "Failed to create main database snapshot"
+  popd > /dev/null
+  exit 1
+fi
+SNAP_END=\$(date +%s)
+SNAP_SIZE=\$(du -h "\${SNAPSHOTS_DIR}/main.sql.gz" | cut -f1)
+log_success "Main DB snapshot: \${SNAP_SIZE} in \$((SNAP_END - SNAP_START))s"
+
+# Export additional databases
+for db in "\${DB_NAMES[@]}"; do
+  if [[ "\$db" != "db" ]]; then
+    log_info "Exporting \${db} database..."
+    SNAP_START=\$(date +%s)
+    if ddev export-db --database="\$db" --gzip --file="\${SNAPSHOTS_DIR}/\${db}.sql.gz" 2>&1; then
+      SNAP_END=\$(date +%s)
+      SNAP_SIZE=\$(du -h "\${SNAPSHOTS_DIR}/\${db}.sql.gz" | cut -f1)
+      log_success "\${db} DB snapshot: \${SNAP_SIZE} in \$((SNAP_END - SNAP_START))s"
+    else
+      log_warn "Could not export \${db} database (may not exist yet)"
+    fi
+  fi
+done
+
+popd > /dev/null
+
+SNAPSHOT_TOTAL_END=\$(date +%s)
+log_success "All snapshots created in \$((SNAPSHOT_TOTAL_END - SNAPSHOT_TOTAL_START))s"
 
 #------------------------------------------------------------------------------
 # Copy DDEV configuration from main project
