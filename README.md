@@ -100,8 +100,11 @@ Dec 17 05:35:42 hostname worktree[12345]: [INFO] Site URL: https://myproject-abc
 │     └─ Isolated Git branch + files in separate directory            │
 ├─────────────────────────────────────────────────────────────────────┤
 │  2. setup-worktree.sh runs automatically                            │
+│     ├─ Creates fresh database snapshot from main project            │
 │     ├─ Creates unique DDEV project (e.g., myproject-a8Xk2)         │
 │     ├─ Generates config.local.yaml with unique hostname             │
+│     ├─ Runs composer install (if vendor/ missing)                   │
+│     ├─ Builds theme assets (npm/yarn/ddev theme)                    │
 │     ├─ Symlinks files directory from main project                   │
 │     └─ Imports database snapshot                                    │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -114,6 +117,38 @@ Dec 17 05:35:42 hostname worktree[12345]: [INFO] Site URL: https://myproject-abc
 │     └─ Merge worktree branch back to main                           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+## Theme Build Support
+
+The worktree setup automatically detects and builds theme assets. Supported methods (checked in order):
+
+| Method | Detection | Command |
+|--------|-----------|---------|
+| **ddev theme** | Custom DDEV command exists | `ddev theme` |
+| **yarn** | `yarn.lock` in theme directory | `yarn install && yarn build` |
+| **npm** | `package.json` in theme directory | `npm ci && npm run build` |
+
+### Theme Directory Detection
+
+The script searches for `package.json` in:
+- `web/themes/custom/*/package.json`
+- `themes/custom/*/package.json`
+
+### Custom DDEV Theme Command
+
+For best results, add a custom DDEV command in `.ddev/commands/web/theme`:
+
+```bash
+#!/bin/bash
+## Description: Build theme assets
+## Usage: theme
+## Example: ddev theme
+
+cd /var/www/html/web/themes/custom/your_theme
+npm ci && npm run build
+```
+
+This is the **recommended approach** as it's portable across all environments.
 
 ## Resource Usage
 

@@ -818,6 +818,71 @@ else
 fi
 
 #------------------------------------------------------------------------------
+# Build theme assets (if needed)
+#------------------------------------------------------------------------------
+log_step "Checking theme build"
+
+THEME_BUILT=false
+
+# Method 1: ddev theme command (custom DDEV command)
+if command -v ddev &>/dev/null && ddev describe 2>/dev/null | grep -q "theme"; then
+  log_info "Found 'ddev theme' command - running..."
+  THEME_START=\$(date +%s)
+  if ddev theme 2>&1; then
+    THEME_END=\$(date +%s)
+    log_success "Theme built with 'ddev theme' in \$((THEME_END - THEME_START))s"
+    THEME_BUILT=true
+  else
+    log_warn "'ddev theme' failed"
+  fi
+fi
+
+# Method 2: npm/yarn in theme directory
+if [[ "\$THEME_BUILT" == "false" ]]; then
+  # Find theme directory with package.json
+  THEME_DIR=""
+  for dir in web/themes/custom/*/package.json themes/custom/*/package.json; do
+    if [[ -f "\$dir" ]]; then
+      THEME_DIR=\$(dirname "\$dir")
+      break
+    fi
+  done
+
+  if [[ -n "\$THEME_DIR" ]]; then
+    log_info "Found theme with package.json: \${THEME_DIR}"
+    pushd "\$THEME_DIR" > /dev/null
+    
+    THEME_START=\$(date +%s)
+    
+    # Check for yarn.lock or package-lock.json
+    if [[ -f "yarn.lock" ]]; then
+      log_info "Using yarn..."
+      if ddev exec "cd \$THEME_DIR && yarn install && yarn build" 2>&1; then
+        THEME_BUILT=true
+      fi
+    elif [[ -f "package-lock.json" ]] || [[ -f "package.json" ]]; then
+      log_info "Using npm..."
+      if ddev exec "cd \$THEME_DIR && npm ci && npm run build" 2>&1; then
+        THEME_BUILT=true
+      elif ddev exec "cd \$THEME_DIR && npm install && npm run build" 2>&1; then
+        THEME_BUILT=true
+      fi
+    fi
+    
+    popd > /dev/null
+    
+    if [[ "\$THEME_BUILT" == "true" ]]; then
+      THEME_END=\$(date +%s)
+      log_success "Theme built in \$((THEME_END - THEME_START))s"
+    else
+      log_warn "Theme build failed - CSS/JS may be missing"
+    fi
+  else
+    log_info "No theme with package.json found - skipping build"
+  fi
+fi
+
+#------------------------------------------------------------------------------
 # Import databases
 #------------------------------------------------------------------------------
 log_step "Importing databases"
