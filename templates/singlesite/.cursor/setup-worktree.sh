@@ -190,6 +190,24 @@ ddev start
 log_success "DDEV started"
 
 #------------------------------------------------------------------------------
+# Install composer dependencies
+#------------------------------------------------------------------------------
+log_step "Checking composer dependencies"
+
+if [[ ! -d "vendor" ]]; then
+  log_info "vendor/ not found - running composer install..."
+  COMPOSER_START=$(date +%s)
+  if ddev composer install --no-interaction 2>&1; then
+    COMPOSER_END=$(date +%s)
+    log_success "Composer install completed in $((COMPOSER_END - COMPOSER_START))s"
+  else
+    log_warn "Composer install failed - site may not work correctly"
+  fi
+else
+  log_info "vendor/ exists - skipping composer install"
+fi
+
+#------------------------------------------------------------------------------
 # Import database
 #------------------------------------------------------------------------------
 log_step "Importing database"
