@@ -1174,9 +1174,9 @@ update_agents_md() {
     return
   fi
 
-  # Content to add
+  # Content to add (using cat instead of read to avoid set -e issues)
   local agents_content
-  read -r -d '' agents_content << 'AGENTS_EOF'
+  agents_content=$(cat << 'AGENTS_EOF'
 
 ## Parallel Agents Workflow
 
@@ -1184,9 +1184,14 @@ update_agents_md() {
 
 When working as a **Parallel Agent** in a worktree environment:
 
+**⚠️ IMPORTANT: You are already in the worktree directory!**
+- Run ALL commands (ddev, drush, git) in your CURRENT directory
+- Do NOT cd to any other directory
+- Your current directory IS your isolated worktree environment
+
 1. **Isolated Environment**: You have your own:
    - Git branch (`worktree/{ID}`)
-   - DDEV containers
+   - DDEV containers (unique hostname like `project-abc12.ddev.site`)
    - Database copy
    - Files are symlinked from main project
 
@@ -1264,6 +1269,7 @@ If your task requires database changes (config, content types, fields):
 
 *Parallel Agents section added by [cursor-parallel-agents-for-drupal](https://github.com/droptica/cursor-parallel-agents-for-drupal)*
 AGENTS_EOF
+)
 
   if [[ -f "AGENTS.md" ]]; then
     # Append to existing file
