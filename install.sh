@@ -7,6 +7,7 @@
 #   curl -sL https://raw.githubusercontent.com/droptica/cursor-parallel-agents-for-drupal/main/install.sh | bash
 #   curl -sL .../install.sh | bash -s -- --type=multisite
 #   curl -sL .../install.sh | bash -s -- --dry-run
+#   curl -sL .../install.sh | bash -s -- --force   # Skip confirmation prompts
 #
 
 set -e
@@ -104,6 +105,7 @@ show_help() {
   echo -e "${BOLD}Options:${NC}"
   echo "  --type=singlesite    Force singlesite installation"
   echo "  --type=multisite     Force multisite installation"
+  echo "  --force              Skip confirmation when updating existing config"
   echo "  --dry-run            Show what would be installed without making changes"
   echo "  --help, -h           Show this help message"
   echo ""
@@ -121,10 +123,12 @@ show_help() {
 #------------------------------------------------------------------------------
 DRY_RUN=false
 FORCE_TYPE=""
+FORCE_OVERWRITE=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --dry-run) DRY_RUN=true; shift ;;
+    --force) FORCE_OVERWRITE=true; shift ;;
     --type=*) FORCE_TYPE="${1#*=}"; shift ;;
     --help|-h) show_help; exit 0 ;;
     *) log_error "Unknown option: $1"; show_help; exit 1 ;;
@@ -172,16 +176,24 @@ check_requirements() {
   fi
   log_success "Git repository found"
 
-  # Check if .cursor already exists
-  if [[ -d ".cursor" ]]; then
-    log_warn ".cursor directory already exists"
-    if [[ "$DRY_RUN" == "false" ]]; then
-      read -p "Overwrite existing configuration? [y/N] " -n 1 -r
+  # Check if .cursor worktree files already exist
+  if [[ -f ".cursor/setup-worktree.sh" ]] || [[ -f ".cursor/worktrees.json" ]]; then
+    log_warn "Cursor worktree configuration already exists"
+    if [[ "$DRY_RUN" == "true" ]]; then
+      log_info "Dry-run mode - would update existing configuration"
+    elif [[ "$FORCE_OVERWRITE" == "true" ]]; then
+      log_info "Force mode - will update existing configuration"
+    elif [[ -t 0 ]]; then
+      # Interactive mode - stdin is a terminal
+      read -p "Update existing worktree configuration? [y/N] " -n 1 -r
       echo
       if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         log_info "Aborted by user"
         exit 0
       fi
+    else
+      # Non-interactive mode (piped via curl)
+      log_info "Worktree files will be updated (use --force to skip this message)"
     fi
   fi
 }
