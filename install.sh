@@ -1244,6 +1244,7 @@ Each worktree spawns Docker containers (~500MB RAM each).
 Add to .cursor/settings.json:
 - "cursor.worktreeMaxCount": 3
 - "cursor.worktreeCleanupIntervalHours": 2
+- "git.showCursorWorktrees": true (shows worktrees in SCM Pane)
 
 ### Database Changes
 
@@ -1309,7 +1310,8 @@ show_summary() {
   echo -e "${CYAN}║${NC}  Recommended Cursor settings (in .cursor/settings.json):           ${CYAN}║${NC}"
   echo -e "${CYAN}║${NC}    {                                                               ${CYAN}║${NC}"
   echo -e "${CYAN}║${NC}      \"cursor.worktreeMaxCount\": 3,                                 ${CYAN}║${NC}"
-  echo -e "${CYAN}║${NC}      \"cursor.worktreeCleanupIntervalHours\": 2                      ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}      \"cursor.worktreeCleanupIntervalHours\": 2,                     ${CYAN}║${NC}"
+  echo -e "${CYAN}║${NC}      \"git.showCursorWorktrees\": true                               ${CYAN}║${NC}"
   echo -e "${CYAN}║${NC}    }                                                               ${CYAN}║${NC}"
   echo -e "${CYAN}╚════════════════════════════════════════════════════════════════════╝${NC}"
   echo ""

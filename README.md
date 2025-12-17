@@ -129,9 +129,12 @@ Configure in `.cursor/settings.json`:
 ```json
 {
   "cursor.worktreeMaxCount": 3,
-  "cursor.worktreeCleanupIntervalHours": 2
+  "cursor.worktreeCleanupIntervalHours": 2,
+  "git.showCursorWorktrees": true
 }
 ```
+
+> **Tip:** Enable `git.showCursorWorktrees` to visualize Cursor-created worktrees in the SCM Pane.
 
 ## Commands
 
