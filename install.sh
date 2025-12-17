@@ -1174,9 +1174,18 @@ update_agents_md() {
     return
   fi
 
-  # Content to add (using cat instead of read to avoid set -e issues)
-  local agents_content
-  agents_content=$(cat << 'AGENTS_EOF'
+  # Create file with header if it doesn't exist
+  if [[ ! -f "AGENTS.md" ]]; then
+    cat > AGENTS.md << 'HEADER_EOF'
+# Project Guidelines for AI Agents
+
+This file contains instructions and guidelines for AI agents working on this project.
+HEADER_EOF
+    log_info "Created AGENTS.md"
+  fi
+
+  # Append content directly to file (avoids variable/subshell issues with backticks)
+  cat >> AGENTS.md << 'AGENTS_EOF'
 
 ## Parallel Agents Workflow
 
@@ -1184,30 +1193,26 @@ update_agents_md() {
 
 When working as a **Parallel Agent** in a worktree environment:
 
-**⚠️ IMPORTANT: You are already in the worktree directory!**
+**IMPORTANT: You are already in the worktree directory!**
 - Run ALL commands (ddev, drush, git) in your CURRENT directory
 - Do NOT cd to any other directory
 - Your current directory IS your isolated worktree environment
 
 1. **Isolated Environment**: You have your own:
-   - Git branch (`worktree/{ID}`)
-   - DDEV containers (unique hostname like `project-abc12.ddev.site`)
+   - Git branch (worktree/ID)
+   - DDEV containers (unique hostname like project-abc12.ddev.site)
    - Database copy
    - Files are symlinked from main project
 
 2. **After completing work**:
-   ```bash
-   git add -A
-   git commit -m "[type]: description of changes"
-   git push origin HEAD
-   ```
+   - git add -A
+   - git commit -m "[type]: description of changes"
+   - git push origin HEAD
 
 3. **Create Pull Request** for code review:
-   ```bash
-   gh pr create --title "Description" --body "Details"
-   ```
+   - gh pr create --title "Description" --body "Details"
 
-### ⚠️ IMPORTANT: Do NOT use "Apply"
+### IMPORTANT: Do NOT use "Apply"
 
 **DO NOT use Cursor's "Apply" button** in worktrees. All changes must go through Code Review.
 
@@ -1226,65 +1231,41 @@ When working as a **Parallel Agent** in a worktree environment:
 Each worktree spawns Docker containers (~500MB RAM each).
 
 **Check resource usage:**
-```bash
-ddev worktree-status
-```
+- ddev worktree-status
 
 **Stop specific worktree:**
-```bash
-ddev stop [project-name]-[worktree-id]
-```
+- ddev stop [project-name]-[worktree-id]
 
 **Cleanup all worktrees:**
-```bash
-.cursor/cleanup-worktree.sh --all
-```
+- .cursor/cleanup-worktree.sh --all
 
 ### Recommended Cursor Settings
 
-Add to `.cursor/settings.json`:
-```json
-{
-  "cursor.worktreeMaxCount": 3,
-  "cursor.worktreeCleanupIntervalHours": 2
-}
-```
+Add to .cursor/settings.json:
+- "cursor.worktreeMaxCount": 3
+- "cursor.worktreeCleanupIntervalHours": 2
 
 ### Database Changes
 
 If your task requires database changes (config, content types, fields):
 
 1. Make changes via Drupal admin or drush
-2. Export configuration: `ddev drush cex -y`
+2. Export configuration: ddev drush cex -y
 3. Commit the exported config files
 4. Document in PR what manual steps are needed
 
 ### Worktree-Specific Notes
 
 - **No LSP**: Language Server Protocol is not available in worktrees
-- **Shared files**: `/sites/default/files` is symlinked - be careful with file operations
-- **Separate cache**: Each worktree has its own cache - run `ddev drush cr` after changes
+- **Shared files**: /sites/default/files is symlinked - be careful with file operations
+- **Separate cache**: Each worktree has its own cache - run ddev drush cr after changes
 
 ---
 
-*Parallel Agents section added by [cursor-parallel-agents-for-drupal](https://github.com/droptica/cursor-parallel-agents-for-drupal)*
+*Parallel Agents section added by cursor-parallel-agents-for-drupal*
 AGENTS_EOF
-)
 
-  if [[ -f "AGENTS.md" ]]; then
-    # Append to existing file
-    echo "$agents_content" >> AGENTS.md
-    log_success "Added Parallel Agents section to existing AGENTS.md"
-  else
-    # Create new file with header
-    cat > AGENTS.md << 'HEADER_EOF'
-# Project Guidelines for AI Agents
-
-This file contains instructions and guidelines for AI agents working on this project.
-HEADER_EOF
-    echo "$agents_content" >> AGENTS.md
-    log_success "Created AGENTS.md with Parallel Agents section"
-  fi
+  log_success "Added Parallel Agents section to AGENTS.md"
 }
 
 #------------------------------------------------------------------------------
