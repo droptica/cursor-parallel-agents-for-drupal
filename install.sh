@@ -807,12 +807,24 @@ log_step "Checking composer dependencies"
 if [[ ! -d "vendor" ]]; then
   log_info "vendor/ not found - running composer install..."
   COMPOSER_START=\$(date +%s)
-  if ddev composer install --no-interaction 2>&1; then
+
+  # Capture composer output for logging
+  COMPOSER_OUTPUT=\$(mktemp)
+  if ddev composer install --no-interaction 2>&1 | tee "\$COMPOSER_OUTPUT"; then
     COMPOSER_END=\$(date +%s)
-    log_success "Composer install completed in \$((COMPOSER_END - COMPOSER_START))s"
+    COMPOSER_PACKAGES=\$(grep -c "Installing\|Updating" "\$COMPOSER_OUTPUT" 2>/dev/null || echo "0")
+    log_success "Composer install completed in \$((COMPOSER_END - COMPOSER_START))s (\${COMPOSER_PACKAGES} packages)"
   else
-    log_warn "Composer install failed - site may not work correctly"
+    COMPOSER_END=\$(date +%s)
+    log_error "Composer install failed after \$((COMPOSER_END - COMPOSER_START))s"
+    # Log last 10 lines of error output
+    log_error "Last output:"
+    tail -10 "\$COMPOSER_OUTPUT" | while read -r line; do
+      log_error "  \$line"
+    done
+    log_warn "Site may not work correctly without vendor/"
   fi
+  rm -f "\$COMPOSER_OUTPUT"
 else
   log_info "vendor/ exists - skipping composer install"
 fi
